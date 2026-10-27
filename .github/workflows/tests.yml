@@ -1,0 +1,34 @@
+name: Forecast Engine Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: Run forecast engine test suite
+        run: pytest
+      - name: Prove the suite catches seeded defects (expected to fail)
+        shell: bash
+        run: |
+          set +e
+          INJECT_DEFECTS=1 pytest -q -o addopts=""
+          code=$?
+          set -e
+          if [ "$code" -eq 1 ]; then echo "Seeded defects detected as expected"; else echo "Unexpected exit code $code"; exit 1; fi
+      - name: Build forecast QA workbook
+        run: python -m reports_tool.forecast_qa_report
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: forecast-reports
+          path: reports/
